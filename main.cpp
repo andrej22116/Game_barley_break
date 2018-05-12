@@ -29,10 +29,9 @@ enum Buttons {
     Button_NewGame,
     Button_LoadGame,
     Button_Highscores,
+    Button_Ok,
     Button_Back,
     Button_ExitGame,
-    Button_Yes,
-    Button_No
 };
 
 enum GameSceneType {
@@ -81,6 +80,7 @@ struct Game {
     Time time;
     int steps;
     int gameField[4][4];
+    int gameId;
 } g_game;
 
 //================================GLOBAL VARIABLES================================//
@@ -113,25 +113,27 @@ void drawWintage();
 
 //=============================CALLBACK FUNCTIONS=============================//
 //-- Timers
-void gameLongTimer(int value);
 void animationTimer(int value);
 void gameTimer(int value);
 
 //======----- Main menu -----======//
+void mouseClickFunction_MainMenu(int button, int state, int x, int y);
 void mouseMotionFunction_MainMenu(int x, int y);
 void renderer_MainMenu(void);
-void mouseClickFunction_MainMenu(int button, int state, int x, int y);
 
 //======----- Game -----======//
-void mouseMotionFubction_Game(int x, int y);
+void mouseClickFunction_Game(int button, int state, int x, int y);
+void mouseMotionFunction_Game(int x, int y);
 void renderer_Game(void);
 
 //======----- Victory -----======//
+void mouseClickFunction_Victory(int button, int state, int x, int y);
 void mouseMotionFunction_Victory(int x, int y);
 void renderer_Victory(void);
 void keyboardFunction_Victory(unsigned char key, int x, int y);
 
 //======----- Highscores -----======//
+void mouseClickFunction_Highscores(int button, int state, int x, int y);
 void mouseMotionFunction_Highscores(int x, int y);
 void renderer_Highscores(void);
 
@@ -161,7 +163,6 @@ void checkVictory();
 
 
 
-
 //==============================REALIZATION==============================//
 //======----- Main functions
 
@@ -182,8 +183,6 @@ int main(int argc, char** argv)
     initializationGl();
     initializationGlut();
     initializationGame();
-
-    glutTimerFunc(20, gameTimer, 0);
 
     //g_currentGameScene = GameScene_MainMenu;
     g_currentGameScene = GameScene_Game;
@@ -226,20 +225,19 @@ void mainMouseClickFunction(int button, int state, int x, int y)
     if (button == GLUT_LEFT_BUTTON && state == GLUT_UP && !g_gameMouse.awaitUpdate)
     {
         g_gameMouse.mouseClick = true;
-        g_gameMouse.awaitUpdate = true;
     }
     else
     {
         g_gameMouse.mouseClick = false;
     }
+    if (g_gameScenes[g_currentGameScene].mouseClickFunction)
+    {
+        g_gameScenes[g_currentGameScene].mouseClickFunction(button, state, x, y);
+    }
 }
 
 void mainMouseMotionFunction(int x, int y)
 {
-    if (g_gameMouse.awaitUpdate)
-    {
-        return;
-    }
     if (g_gameScenes[g_currentGameScene].mouseFunction)
     {
         g_gameScenes[g_currentGameScene].mouseFunction(x, y);
@@ -253,6 +251,44 @@ void mainResizeFunction(int width, int height)
 
 
 //======----- Main menu -----======//
+void mouseClickFunction_MainMenu(int button, int state, int x, int y)
+{
+    if (!g_gameMouse.mouseClick)
+    {
+        return;
+    }
+
+    if (g_gameMouse.mouseOnButton)
+    {
+        switch(g_gameMouse.buttonId)
+        {
+        case Button_NewGame: {
+            glutTimerFunc(1000, gameTimer, 0);
+            g_gameMouse.buttonId = Button_NoButton;
+            makeGame();
+            g_currentGameScene = GameScene_Game;
+        } break;
+        case Button_LoadGame: {
+            glutTimerFunc(1000, gameTimer, 0);
+            g_currentGameScene = GameScene_Game;
+        } break;
+        case Button_Highscores: {} break;
+        case Button_ExitGame: {
+            exit(0);
+        } break;
+        }
+        if (g_gameMouse.buttonId == Button_NewGame)
+        {
+            makeGame();
+
+        }
+        else if (g_gameMouse.buttonId == Button_Back)
+        {
+            g_currentGameScene = GameScene_MainMenu;
+        }
+    }
+}
+
 void mouseMotionFunction_MainMenu(int x, int y)
 {
     float pos_x = 0;
@@ -309,7 +345,31 @@ void renderer_MainMenu(void)
 
 
 //======----- Game -----======//
-void mouseMotionFubction_Game(int x, int y)
+void mouseClickFunction_Game(int button, int state, int x, int y)
+{
+    if (!g_gameMouse.mouseClick)
+    {
+        return;
+    }
+
+    if (g_gameMouse.mouseOnCell)
+    {
+        makeMove();
+    }
+    else if (g_gameMouse.mouseOnButton)
+    {
+        if (g_gameMouse.buttonId == Button_NewGame)
+        {
+            makeGame();
+        }
+        else if (g_gameMouse.buttonId == Button_Back)
+        {
+            g_currentGameScene = GameScene_MainMenu;
+        }
+    }
+}
+
+void mouseMotionFunction_Game(int x, int y)
 {
     float pos_x = 0;
     float pos_y = 0;
@@ -342,6 +402,22 @@ void mouseMotionFubction_Game(int x, int y)
 
         return;
     }
+    else if (pos_y >= g_gameButtonsPosY - g_gameButtonsHeight
+             && pos_y <= g_gameButtonsPosY + g_gameButtonsHeight)
+    {
+        if (pos_x >= g_gameButtonsPosX[0] - g_gameButtonsWidth
+                && pos_x <= g_gameButtonsPosX[0] + g_gameButtonsWidth)
+        {
+            g_gameMouse.mouseOnButton = true;
+            g_gameMouse.buttonId = Button_NewGame;
+        }
+        else if (pos_x >= g_gameButtonsPosX[1] - g_gameButtonsWidth
+                && pos_x <= g_gameButtonsPosX[1] + g_gameButtonsWidth)
+        {
+            g_gameMouse.mouseOnButton = true;
+            g_gameMouse.buttonId = Button_Back;
+        }
+    }
 }
 
 void renderer_Game(void)
@@ -362,6 +438,11 @@ void renderer_Game(void)
 
 
 //======----- Victory -----======//
+void mouseClickFunction_Victory(int button, int state, int x, int y)
+{
+
+}
+
 void mouseMotionFunction_Victory(int x, int y)
 {
 
@@ -379,6 +460,11 @@ void keyboardFunction_Victory(unsigned char key, int x, int y)
 
 
 //======----- Highscores -----======//
+void mouseClickFunction_Highscores(int button, int state, int x, int y)
+{
+
+}
+
 void mouseMotionFunction_Highscores(int x, int y)
 {
 
@@ -660,26 +746,18 @@ float convertWindowCordsToGlWorldCords(int window_x, int window_y, float& world_
     world_y = (g_height - 2.0f * window_y) / g_height;
 }
 
-
 void gameTimer(int value)
 {
-    if (g_gameMouse.mouseClick)
+    if (g_game.gameId != value)
     {
-        g_gameMouse.mouseClick = false;
-        if (g_gameMouse.mouseOnCell)
-        {
-            makeMove();
-        }
+        return;
+    }
+    if (g_currentGameScene != GameScene_Game)
+    {
+        glutTimerFunc(1000, gameTimer, value);
+        return;
     }
 
-
-    g_gameMouse.awaitUpdate = false;
-    glutTimerFunc(20, gameTimer, 0);
-    glutPostRedisplay();
-}
-
-void gameLongTimer(int value)
-{
     g_game.time.seconds++;
     if (g_game.time.seconds == 60)
     {
@@ -692,10 +770,7 @@ void gameLongTimer(int value)
         g_game.time.minutes = 0;
     }
 
-    if (g_currentGameScene == GameScene_Game)
-    {
-        glutTimerFunc(1000, gameLongTimer, 0);
-    }
+    glutTimerFunc(1000, gameTimer, value);
     glutPostRedisplay();
 }
 
@@ -796,7 +871,11 @@ void makeGame()
     }
     memcpy(g_game.gameField, matrixLine.data(), sizeof(int) * 16);
 
-    glutTimerFunc(1000, gameLongTimer, 0);
+    memset(&g_game.time, 0, sizeof(g_game.time));
+    g_game.steps = 0;
+
+    g_game.gameId++;
+    glutTimerFunc(1000, gameTimer, g_game.gameId);
 }
 
 
@@ -806,10 +885,10 @@ void drawDrawTimeAndSteps()
     sprintf(buffer, "Time: %2.2d:%2.2d:%2.2d", g_game.time.hours, g_game.time.minutes, g_game.time.seconds);
 
     glColor3fv(g_infoTextColor);
-    drawButton(buffer, -0.45f, -0.9f, 0.35f, 0.075f, Button_No);
+    drawButton(buffer, -0.45f, -0.9f, 0.35f, 0.075f, Button_NoButton);
 
     sprintf(buffer, "Steps: %d", g_game.steps);
-    drawButton(buffer, 0.45f, -0.9f, 0.35f, 0.075f, Button_No);
+    drawButton(buffer, 0.45f, -0.9f, 0.35f, 0.075f, Button_NoButton);
 }
 
 //-- Draw display
@@ -921,29 +1000,31 @@ void drawButton(const char* text, float x, float y, float width, float height, B
 //=============================LOGICK FUNCTIONS=============================//
 void initializationGame()
 {
+    memset(&g_game, 0, sizeof(g_game));
+
     // Initialize Main menu functions
     g_gameScenes[GameScene_MainMenu].renderFunction = renderer_MainMenu;
     g_gameScenes[GameScene_MainMenu].mouseFunction = mouseMotionFunction_MainMenu;
     g_gameScenes[GameScene_MainMenu].keyboardFunction = nullptr;
-    g_gameScenes[GameScene_MainMenu].mouseClickFunction = nullptr;
+    g_gameScenes[GameScene_MainMenu].mouseClickFunction = mouseClickFunction_MainMenu;
 
     // Initialize Game functions
     g_gameScenes[GameScene_Game].renderFunction = renderer_Game;
-    g_gameScenes[GameScene_Game].mouseFunction = mouseMotionFubction_Game;
+    g_gameScenes[GameScene_Game].mouseFunction = mouseMotionFunction_Game;
     g_gameScenes[GameScene_Game].keyboardFunction = nullptr;
-    g_gameScenes[GameScene_Game].mouseClickFunction = nullptr;
+    g_gameScenes[GameScene_Game].mouseClickFunction = mouseClickFunction_Game;
 
     // Initialize Highscores functions
     g_gameScenes[GameScene_Highscores].renderFunction = renderer_Highscores;
     g_gameScenes[GameScene_Highscores].mouseFunction = mouseMotionFunction_Highscores;
     g_gameScenes[GameScene_Highscores].keyboardFunction = nullptr;
-    g_gameScenes[GameScene_Highscores].mouseClickFunction = nullptr;
+    g_gameScenes[GameScene_Highscores].mouseClickFunction = mouseClickFunction_Highscores;
 
     // Initialize Victory functions
     g_gameScenes[GameScene_Victory].renderFunction = renderer_Victory;
     g_gameScenes[GameScene_Victory].mouseFunction = mouseMotionFunction_Victory;
     g_gameScenes[GameScene_Victory].keyboardFunction = keyboardFunction_Victory;
-    g_gameScenes[GameScene_Victory].mouseClickFunction = nullptr;
+    g_gameScenes[GameScene_Victory].mouseClickFunction = mouseClickFunction_Victory;
 }
 
 void initializationGlut()

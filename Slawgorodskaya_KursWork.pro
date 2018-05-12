@@ -9,5 +9,4 @@ SOURCES += main.cpp
 LIBS += -lGL -lGLU
 LIBS += -lglut
 
-HEADERS += stb_image.h \
-    constglobalvariables.h
+HEADERS += constglobalvariables.h
