@@ -199,7 +199,7 @@ int main(int argc, char** argv)
     initializationGlut();
     initializationGame();
 
-    g_currentGameScene = GameScene_Victory;
+    //g_currentGameScene = GameScene_Victory;
     //g_currentGameScene = GameScene_Highscores;
     glutMainLoop();
 
@@ -461,6 +461,42 @@ void mouseClickFunction_Victory(int button, int state, int x, int y)
 
     if (g_gameMouse.mouseOnButton)
     {
+        int textlen = strlen(g_highscoresTable[10].playerName);
+        if (textlen == 0)
+        {
+            return;
+        }
+
+        sort(g_highscoresTable.begin(), g_highscoresTable.end(), [](const Highscore& left, const Highscore& right){
+            if (!left.playerName[0]) return false;
+            if (!right.playerName[0]) return true;
+
+            bool stepsEq = left.steps == right.steps;
+            bool hoursEq = left.time.hours == right.time.hours;
+            bool minsEq = left.time.minutes == right.time.minutes;
+
+            if (left.steps < right.steps)
+            {
+                return true;
+            }
+            else if (stepsEq && left.time.hours < right.time.hours)
+            {
+                return true;
+            }
+            else if (stepsEq && hoursEq && left.time.minutes < right.time.minutes)
+            {
+                return true;
+            }
+            else if (stepsEq && hoursEq && minsEq && left.time.seconds == right.time.seconds)
+            {
+                return true;
+            }
+            return false;
+        });
+
+        saveHighscoresTable();
+        makeGame();
+        saveGame();
         g_currentGameScene = GameScene_Highscores;
     }
 }
@@ -501,7 +537,20 @@ void renderer_Victory(void)
 
 void keyboardFunction_Victory(unsigned char key, int x, int y)
 {
-
+    int textlen = strlen(g_highscoresTable[10].playerName);
+    if (key == 8)
+    {
+        if (textlen != 0)
+        {
+            textlen--;
+        }
+        g_highscoresTable[10].playerName[textlen] = '\0';
+        return;
+    }
+    else if (key >= 25 && textlen < 15)
+    {
+        g_highscoresTable[10].playerName[textlen] = key;
+    }
 }
 
 
@@ -820,7 +869,10 @@ void checkVictory()
 {
     if (memcmp(g_game.gameField, g_VictoryMartix, sizeof(int) * 16) == 0)
     {
-        cout << "Pabedaaaa!!!!" << endl;
+        memset(g_highscoresTable[10].playerName, 0, 16);
+        g_highscoresTable[10].steps = g_game.steps;
+        g_highscoresTable[10].time = g_game.time;
+        g_currentGameScene = GameScene_Victory;
     }
 }
 
@@ -1064,8 +1116,14 @@ void drawBackgroundSquareWithRounding(float x, float y, float width, float heigh
 
 void drawInputNameField()
 {
-    glColor3f(0.4f, 0.4f, 0.4f);
-    drawBackgroundSquareWithRounding(0, 0.65f, 0.75f, 0.1f);
+    glColor3f(0.8f, 0.6f, 0.5f);
+    drawBackgroundSquareWithRounding(0, g_highscoresTableHeight + g_cellsBetweenInterval + 0.1,
+                                     g_fieldSize - g_cellsBetweenInterval, 0.1f);
+
+    float y = g_highscoresTableHeight + g_cellsBetweenInterval + 0.07;
+    glColor3f(1, 1, 1);
+    drawText("Your name: ", -g_fieldSize + 2.0f * g_cellsBetweenInterval, y, 1);
+    drawText(g_highscoresTable[10].playerName, -g_fieldSize + 0.45, y, 1);
 }
 
 
@@ -1108,6 +1166,7 @@ void initializationGlut()
     glutDisplayFunc(mainRendererFunction);
     glutIdleFunc(mainRendererFunction);
     glutReshapeFunc(mainResizeFunction);
+    glutKeyboardFunc(mainKeyboardFunction);
 }
 
 void initializationGl()
