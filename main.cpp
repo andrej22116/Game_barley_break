@@ -119,6 +119,8 @@ void drawArrow(int x, int y);
 //--- Decor
 void drawWintage();
 
+void drawInputNameField();
+
 
 //=============================CALLBACK FUNCTIONS=============================//
 //-- Timers
@@ -198,6 +200,7 @@ int main(int argc, char** argv)
     initializationGame();
 
     g_currentGameScene = GameScene_Victory;
+    //g_currentGameScene = GameScene_Highscores;
     glutMainLoop();
 
 
@@ -251,6 +254,7 @@ void mainMouseMotionFunction(int x, int y)
 {
     if (g_gameScenes[g_currentGameScene].mouseFunction)
     {
+        memset(&g_gameMouse, 0, sizeof(g_gameMouse));
         g_gameScenes[g_currentGameScene].mouseFunction(x, y);
     }
 }
@@ -284,7 +288,9 @@ void mouseClickFunction_MainMenu(int button, int state, int x, int y)
             glutTimerFunc(1000, gameTimer, 0);
             g_currentGameScene = GameScene_Game;
         } break;
-        case Button_Highscores: {} break;
+        case Button_Highscores: {
+            g_currentGameScene = GameScene_Highscores;
+        } break;
         case Button_ExitGame: {
             exit(0);
         } break;
@@ -305,8 +311,6 @@ void mouseMotionFunction_MainMenu(int x, int y)
     float pos_x = 0;
     float pos_y = 0;
     convertWindowCordsToGlWorldCords(x, y, pos_x, pos_y);
-
-    memset(&g_gameMouse, 0, sizeof(g_gameMouse));
 
     if (pos_x >= -g_mainMenuButtonsWidth && pos_x <= g_mainMenuButtonsWidth)
     {
@@ -387,8 +391,6 @@ void mouseMotionFunction_Game(int x, int y)
     float pos_y = 0;
     convertWindowCordsToGlWorldCords(x, y, pos_x, pos_y);
 
-    memset(&g_gameMouse, 0, sizeof(g_gameMouse));
-
     if ( ( pos_x >= -g_fieldSize && pos_x <= g_fieldSize )
         && ( pos_y >= -g_fieldSize && pos_y <= g_fieldSize ) )
     {
@@ -452,18 +454,42 @@ void renderer_Game(void)
 //======----- Victory -----======//
 void mouseClickFunction_Victory(int button, int state, int x, int y)
 {
+    if (!g_gameMouse.mouseClick)
+    {
+        return;
+    }
 
+    if (g_gameMouse.mouseOnButton)
+    {
+        g_currentGameScene = GameScene_Highscores;
+    }
 }
 
 void mouseMotionFunction_Victory(int x, int y)
 {
+    float pos_x = 0;
+    float pos_y = 0;
+    convertWindowCordsToGlWorldCords(x, y, pos_x, pos_y);
 
+    if (pos_x >= -g_victoryButtonsWidth && pos_x <= g_victoryButtonsWidth
+            && pos_y >= g_victoryButtonsPosY - g_victoryButtonsHeight
+            && pos_y <= g_victoryButtonsPosY + g_victoryButtonsHeight)
+    {
+        g_gameMouse.mouseOnButton = true;
+        g_gameMouse.buttonId = Button_Ok;
+    }
 }
 
 void renderer_Victory(void)
 {
+    glColor3f(0.85, 1, 0.9);
+    drawBackgroundSquareWithRounding(0, 0.8f, 0.3f, 0.15f);
+    glColor3f(0.2f, 0.8f, 0.2f);
+    drawText("You win!", -0.13f, 0.85f, 1);
+
     drawBackground();
 
+    drawInputNameField();
     drawHighscoresTable(0, 0.0f);
     drawDrawTimeAndSteps();
 
@@ -482,17 +508,45 @@ void keyboardFunction_Victory(unsigned char key, int x, int y)
 //======----- Highscores -----======//
 void mouseClickFunction_Highscores(int button, int state, int x, int y)
 {
+    if (!g_gameMouse.mouseClick)
+    {
+        return;
+    }
 
+    if (g_gameMouse.mouseOnButton)
+    {
+        g_currentGameScene = GameScene_MainMenu;
+    }
 }
 
 void mouseMotionFunction_Highscores(int x, int y)
 {
+    float pos_x = 0;
+    float pos_y = 0;
+    convertWindowCordsToGlWorldCords(x, y, pos_x, pos_y);
 
+    if (pos_x >= -g_victoryButtonsWidth && pos_x <= g_victoryButtonsWidth
+            && pos_y >= g_victoryButtonsPosY - g_victoryButtonsHeight
+            && pos_y <= g_victoryButtonsPosY + g_victoryButtonsHeight)
+    {
+        g_gameMouse.mouseOnButton = true;
+        g_gameMouse.buttonId = Button_Ok;
+    }
 }
 
 void renderer_Highscores(void)
 {
+    drawBackground();
 
+    glColor3f(0.6f, 0.4f, 0.2f);
+    drawText("HIGHSCORES", -0.2, 0.62, 1);
+
+    drawHighscoresTable(0, 0.0f);
+
+    drawButton("Main menu", 0, g_victoryButtonsPosY,
+               g_victoryButtonsWidth, g_victoryButtonsHeight, Button_Ok);
+
+    drawWintage();
 }
 
 
@@ -1006,6 +1060,12 @@ void drawBackgroundSquareWithRounding(float x, float y, float width, float heigh
         }
     }
     glEnd();
+}
+
+void drawInputNameField()
+{
+    glColor3f(0.4f, 0.4f, 0.4f);
+    drawBackgroundSquareWithRounding(0, 0.65f, 0.75f, 0.1f);
 }
 
 
