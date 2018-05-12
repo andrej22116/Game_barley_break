@@ -40,7 +40,6 @@ enum GameSceneType {
     GameScene_Game,
     GameScene_Highscores,
     GameScene_Victory,
-    GameScene_LoadOldGame,
     GameScene_CountScenes
 };
 
@@ -61,6 +60,7 @@ struct GameScene {
     void (*renderFunction)(void);
     void (*mouseFunction)(int x, int y);
     void (*keyboardFunction)(unsigned char key, int x, int y);
+    void (*mouseClickFunction)(int button, int state, int x, int y);
 } g_gameScenes[GameScene_CountScenes];
 
 struct Time {
@@ -91,7 +91,7 @@ GameSceneType g_currentGameScene = GameScene_MainMenu;
 //===============================RENDER FUNCTIONS===============================//
 //-- Interface
 void drawBackground();
-void drawBottomPanel();
+void drawButton(const char* text, float x, float y, float width, float height, Buttons button_id);
 void drawDrawTimeAndSteps();
 
 //-- Other
@@ -118,32 +118,29 @@ void animationTimer(int value);
 void gameTimer(int value);
 
 //======----- Main menu -----======//
-void mouseMotionFuction_MainMenu(int x, int y);
+void mouseMotionFunction_MainMenu(int x, int y);
 void renderer_MainMenu(void);
+void mouseClickFunction_MainMenu(int button, int state, int x, int y);
 
 //======----- Game -----======//
-void mouseMotionFuction_Game(int x, int y);
+void mouseMotionFubction_Game(int x, int y);
 void renderer_Game(void);
 
 //======----- Victory -----======//
-void mouseMotionFuction_Victory(int x, int y);
+void mouseMotionFunction_Victory(int x, int y);
 void renderer_Victory(void);
 void keyboardFunction_Victory(unsigned char key, int x, int y);
 
 //======----- Highscores -----======//
-void mouseMotionFuction_Highscores(int x, int y);
+void mouseMotionFunction_Highscores(int x, int y);
 void renderer_Highscores(void);
-
-//======----- Load old game -----======//
-void mouseMotionFuction_LoadOldGame(int x, int y);
-void renderer_LoadOldGame(void);
 
 
 
 void mainRendererFunction();
 void mainKeyboardFunction(unsigned char key, int x, int y);
 void mainMouseClickFunction(int button, int state, int x, int y);
-void mainMouseMotionFuction(int x, int y);
+void mainMouseMotionFunction(int x, int y);
 void mainResizeFunction(int width, int height);
 
 
@@ -188,6 +185,7 @@ int main(int argc, char** argv)
 
     glutTimerFunc(20, gameTimer, 0);
 
+    //g_currentGameScene = GameScene_MainMenu;
     g_currentGameScene = GameScene_Game;
     makeGame();
     glutMainLoop();
@@ -207,14 +205,20 @@ void mainRendererFunction()
 
     glLoadIdentity();
 
-    g_gameScenes[g_currentGameScene].renderFunction();
+    if (g_gameScenes[g_currentGameScene].renderFunction)
+    {
+        g_gameScenes[g_currentGameScene].renderFunction();
+    }
 
     glutSwapBuffers();
 }
 
 void mainKeyboardFunction(unsigned char key, int x, int y)
 {
-    g_gameScenes[g_currentGameScene].keyboardFunction(key, x, y);
+    if (g_gameScenes[g_currentGameScene].keyboardFunction)
+    {
+        g_gameScenes[g_currentGameScene].keyboardFunction(key, x, y);
+    }
 }
 
 void mainMouseClickFunction(int button, int state, int x, int y)
@@ -230,9 +234,16 @@ void mainMouseClickFunction(int button, int state, int x, int y)
     }
 }
 
-void mainMouseMotionFuction(int x, int y)
+void mainMouseMotionFunction(int x, int y)
 {
-    g_gameScenes[g_currentGameScene].mouseFunction(x, y);
+    if (g_gameMouse.awaitUpdate)
+    {
+        return;
+    }
+    if (g_gameScenes[g_currentGameScene].mouseFunction)
+    {
+        g_gameScenes[g_currentGameScene].mouseFunction(x, y);
+    }
 }
 
 void mainResizeFunction(int width, int height)
@@ -241,15 +252,145 @@ void mainResizeFunction(int width, int height)
 }
 
 
-//===========
-
-void drawBackground()
+//======----- Main menu -----======//
+void mouseMotionFunction_MainMenu(int x, int y)
 {
-    glColor3fv(g_fieldBackgroundColor);
-    drawCell(0, 0, 0.8);
+    float pos_x = 0;
+    float pos_y = 0;
+    convertWindowCordsToGlWorldCords(x, y, pos_x, pos_y);
+
+    memset(&g_gameMouse, 0, sizeof(g_gameMouse));
+
+    if (pos_x >= -g_mainMenuButtonsWidth && pos_x <= g_mainMenuButtonsWidth)
+    {
+        if (pos_y >= g_mainMenuButtonsPosY[0] - g_mainMenuButtonsHeight
+                && pos_y <= g_mainMenuButtonsPosY[0] + g_mainMenuButtonsHeight)
+        {
+            g_gameMouse.mouseOnButton = true;
+            g_gameMouse.buttonId = Button_NewGame;
+        }
+        else if (pos_y >= g_mainMenuButtonsPosY[1] - g_mainMenuButtonsHeight
+                && pos_y <= g_mainMenuButtonsPosY[1] + g_mainMenuButtonsHeight)
+        {
+            g_gameMouse.mouseOnButton = true;
+            g_gameMouse.buttonId = Button_LoadGame;
+        }
+        else if (pos_y >= g_mainMenuButtonsPosY[2] - g_mainMenuButtonsHeight
+                && pos_y <= g_mainMenuButtonsPosY[2] + g_mainMenuButtonsHeight)
+        {
+            g_gameMouse.mouseOnButton = true;
+            g_gameMouse.buttonId = Button_Highscores;
+        }
+        else if (pos_y >= g_mainMenuButtonsPosY[3] - g_mainMenuButtonsHeight
+                && pos_y <= g_mainMenuButtonsPosY[3] + g_mainMenuButtonsHeight)
+        {
+            g_gameMouse.mouseOnButton = true;
+            g_gameMouse.buttonId = Button_ExitGame;
+        }
+    }
+}
+
+void renderer_MainMenu(void)
+{
+    drawBackground();
+
+    int button_id = 0;
+    drawButton("New game", 0, g_mainMenuButtonsPosY[button_id++],
+               g_mainMenuButtonsWidth, g_mainMenuButtonsHeight, Button_NewGame);
+    drawButton("Continue game", 0, g_mainMenuButtonsPosY[button_id++],
+               g_mainMenuButtonsWidth, g_mainMenuButtonsHeight, Button_LoadGame);
+    drawButton("Highscores", 0, g_mainMenuButtonsPosY[button_id++],
+               g_mainMenuButtonsWidth, g_mainMenuButtonsHeight, Button_Highscores);
+    drawButton("Exit from game", 0, g_mainMenuButtonsPosY[button_id++],
+               g_mainMenuButtonsWidth, g_mainMenuButtonsHeight, Button_ExitGame);
+
+    drawWintage();
 }
 
 
+//======----- Game -----======//
+void mouseMotionFubction_Game(int x, int y)
+{
+    float pos_x = 0;
+    float pos_y = 0;
+    convertWindowCordsToGlWorldCords(x, y, pos_x, pos_y);
+
+    memset(&g_gameMouse, 0, sizeof(g_gameMouse));
+
+    if ( ( pos_x >= -g_fieldSize && pos_x <= g_fieldSize )
+        && ( pos_y >= -g_fieldSize && pos_y <= g_fieldSize ) )
+    {
+        int cell_x = int((pos_x + g_fieldSize) / (g_fieldSize / 2.0f));
+        int cell_y = int((g_fieldSize - pos_y) / (g_fieldSize / 2.0f));
+
+        if (cell_x > 3 || cell_y > 3)
+        {
+            return;
+        }
+
+        float chip_x = 0;
+        float chip_y = 0;
+        getChipPos(cell_x, cell_y, chip_x, chip_y);
+
+        if ( ( pos_x >= chip_x - g_cellSize && pos_x <= chip_x + g_cellSize )
+            && ( pos_y >= chip_y - g_cellSize && pos_y <= chip_y + g_cellSize ) )
+        {
+            g_gameMouse.mouseOnCell = true;
+            g_gameMouse.cell_x = cell_x;
+            g_gameMouse.cell_y = cell_y;
+        }
+
+        return;
+    }
+}
+
+void renderer_Game(void)
+{
+    //drawBottomPanel();
+    drawDrawTimeAndSteps();
+    drawBackground();
+    drawChips();
+
+    drawButton("New game", g_gameButtonsPosX[0], g_gameButtonsPosY,
+               g_gameButtonsWidth, g_gameButtonsHeight, Button_NewGame);
+    drawButton("Main menu", g_gameButtonsPosX[1], g_gameButtonsPosY,
+               g_gameButtonsWidth, g_gameButtonsHeight, Button_Back);
+
+
+    drawWintage();
+}
+
+
+//======----- Victory -----======//
+void mouseMotionFunction_Victory(int x, int y)
+{
+
+}
+
+void renderer_Victory(void)
+{
+
+}
+
+void keyboardFunction_Victory(unsigned char key, int x, int y)
+{
+
+}
+
+
+//======----- Highscores -----======//
+void mouseMotionFunction_Highscores(int x, int y)
+{
+
+}
+
+void renderer_Highscores(void)
+{
+
+}
+
+
+//===========
 void drawCell(float x, float y, float size)
 {
     // Center
@@ -659,144 +800,122 @@ void makeGame()
 }
 
 
-void drawBottomPanel()
-{
-    glBegin(GL_QUADS);
-    {
-        glColor3fv(g_infoBarColorBottom);
-        glVertex2f(-1.5f, -0.95f);
-        glVertex2f(-1.5f, -1);
-        glVertex2f(1.5f, -1);
-        glVertex2f(1.5f, -0.95f);
-
-        glColor3fv(g_infoBarColor);
-        glVertex2f(-1.5f, -0.95f);
-        glVertex2f(1.5f, -0.95f);
-
-        glColor3f(0.1f, 0.1f, 0.1f);
-        glVertex2f(0.825f, -0.6f);
-        glVertex2f(-0.825f, -0.6f);
-    }
-    glEnd();
-}
-
 void drawDrawTimeAndSteps()
 {
     char buffer[100] = {0};
     sprintf(buffer, "Time: %2.2d:%2.2d:%2.2d", g_game.time.hours, g_game.time.minutes, g_game.time.seconds);
 
     glColor3fv(g_infoTextColor);
-    drawText(buffer, -0.9, -0.9, 1);
+    drawButton(buffer, -0.45f, -0.9f, 0.35f, 0.075f, Button_No);
 
     sprintf(buffer, "Steps: %d", g_game.steps);
-    drawText(buffer, 0.6, -0.9, 1);
+    drawButton(buffer, 0.45f, -0.9f, 0.35f, 0.075f, Button_No);
 }
 
-
-
-
-//======----- Main menu -----======//
-void mouseMotionFuction_MainMenu(int x, int y)
+//-- Draw display
+void drawBackground()
 {
+    glColor3fv(g_fieldBackgroundColor);
+    drawCell(0, 0, 0.8);
 }
 
-void renderer_MainMenu(void)
+void drawButton(const char* text, float x, float y, float width, float height, Buttons button_id)
 {
-
-}
-
-
-//======----- Game -----======//
-void mouseMotionFuction_Game(int x, int y)
-{
-    if (g_gameMouse.awaitUpdate)
+    if (g_gameMouse.mouseOnButton && button_id == g_gameMouse.buttonId)
     {
-        return;
+        glColor3fv(g_buttonColor_hover);
+    }
+    else
+    {
+        glColor3fv(g_buttonColor);
     }
 
-    float pos_x = 0;
-    float pos_y = 0;
-    convertWindowCordsToGlWorldCords(x, y, pos_x, pos_y);
-
-    memset(&g_gameMouse, 0, sizeof(g_gameMouse));
-
-    if ( ( pos_x >= -g_fieldSize && pos_x <= g_fieldSize )
-        && ( pos_y >= -g_fieldSize && pos_y <= g_fieldSize ) )
+    glBegin(GL_QUADS);
     {
-        int cell_x = int((pos_x + g_fieldSize) / (g_fieldSize / 2.0f));
-        int cell_y = int((g_fieldSize - pos_y) / (g_fieldSize / 2.0f));
+        glVertex2f(x - width + g_cellRoundingSize, y + height);
+        glVertex2f(x - width + g_cellRoundingSize, y - height);
+        glVertex2f(x + width - g_cellRoundingSize, y - height);
+        glVertex2f(x + width - g_cellRoundingSize, y + height);
 
-        if (cell_x > 3 || cell_y > 3)
-        {
-            return;
-        }
-
-        float chip_x = 0;
-        float chip_y = 0;
-        getChipPos(cell_x, cell_y, chip_x, chip_y);
-
-        if ( ( pos_x >= chip_x - g_cellSize && pos_x <= chip_x + g_cellSize )
-            && ( pos_y >= chip_y - g_cellSize && pos_y <= chip_y + g_cellSize ) )
-        {
-            g_gameMouse.mouseOnCell = true;
-            g_gameMouse.cell_x = cell_x;
-            g_gameMouse.cell_y = cell_y;
-        }
-
-        return;
+        glVertex2f(x - width, y + height - g_cellRoundingSize);
+        glVertex2f(x - width, y - height + g_cellRoundingSize);
+        glVertex2f(x + width, y - height + g_cellRoundingSize);
+        glVertex2f(x + width, y + height - g_cellRoundingSize);
     }
+    glEnd();
+
+    // Top left
+    glBegin(GL_TRIANGLE_STRIP);
+    {
+        float center_x = x - width + g_cellRoundingSize;
+        float center_y = y + height - g_cellRoundingSize;
+
+        for (int i = 80; i <= 190; i += g_cellRoundingInterval)
+        {
+            float angle = float(i) * float(M_PI) / 180.0f;
+            glVertex2f(center_x, center_y);
+            glVertex2f(center_x + cos(angle) * g_cellRoundingSize,
+                       center_y + sin(angle) * g_cellRoundingSize);
+        }
+    }
+    glEnd();
+
+    // Bottom left
+    glBegin(GL_TRIANGLE_STRIP);
+    {
+        float center_x = x - width + g_cellRoundingSize;
+        float center_y = y - height + g_cellRoundingSize;
+
+        for (int i = 170; i <= 280; i += g_cellRoundingInterval)
+        {
+            float angle = float(i) * float(M_PI) / 180.0f;
+            glVertex2f(center_x, center_y);
+            glVertex2f(center_x + cos(angle) * g_cellRoundingSize,
+                       center_y + sin(angle) * g_cellRoundingSize);
+        }
+    }
+    glEnd();
+
+    // Bottom right
+    glBegin(GL_TRIANGLE_STRIP);
+    {
+        float center_x = x + width - g_cellRoundingSize;
+        float center_y = y - height + g_cellRoundingSize;
+
+        for (int i = 260; i <= 370; i += g_cellRoundingInterval)
+        {
+            float angle = float(i) * float(M_PI) / 180.0f;
+            glVertex2f(center_x, center_y);
+            glVertex2f(center_x + cos(angle) * g_cellRoundingSize,
+                       center_y + sin(angle) * g_cellRoundingSize);
+        }
+    }
+    glEnd();
+
+    // Top right
+    glBegin(GL_TRIANGLE_STRIP);
+    {
+        float center_x = x + width - g_cellRoundingSize;
+        float center_y = y + height - g_cellRoundingSize;
+
+        for (int i = -10; i <= 100; i += g_cellRoundingInterval)
+        {
+            float angle = float(i) * float(M_PI) / 180.0f;
+            glVertex2f(center_x, center_y);
+            glVertex2f(center_x + cos(angle) * g_cellRoundingSize,
+                       center_y + sin(angle) * g_cellRoundingSize);
+        }
+    }
+    glEnd();
+
+
+    glColor3fv(g_infoTextColor);
+    int textLen = strlen(text);
+    float textPos_x = x - (1.0f - (1.0f / textLen)) + 0.75f;
+    float textPos_y = y - 0.02;
+
+    drawText(text, textPos_x, textPos_y, 1);
 }
-
-void renderer_Game(void)
-{
-    drawBottomPanel();
-    drawDrawTimeAndSteps();
-    drawBackground();
-    drawChips();
-    drawWintage();
-}
-
-
-//======----- Victory -----======//
-void mouseMotionFuction_Victory(int x, int y)
-{
-
-}
-
-void renderer_Victory(void)
-{
-
-}
-
-void keyboardFunction_Victory(unsigned char key, int x, int y)
-{
-
-}
-
-
-//======----- Highscores -----======//
-void mouseMotionFuction_Highscores(int x, int y)
-{
-
-}
-
-void renderer_Highscores(void)
-{
-
-}
-
-
-//======----- Load old game -----======//
-void mouseMotionFuction_LoadOldGame(int x, int y)
-{
-
-}
-
-void renderer_LoadOldGame(void)
-{
-
-}
-
 
 
 //=============================LOGICK FUNCTIONS=============================//
@@ -804,34 +923,33 @@ void initializationGame()
 {
     // Initialize Main menu functions
     g_gameScenes[GameScene_MainMenu].renderFunction = renderer_MainMenu;
-    g_gameScenes[GameScene_MainMenu].mouseFunction = mouseMotionFuction_MainMenu;
+    g_gameScenes[GameScene_MainMenu].mouseFunction = mouseMotionFunction_MainMenu;
     g_gameScenes[GameScene_MainMenu].keyboardFunction = nullptr;
+    g_gameScenes[GameScene_MainMenu].mouseClickFunction = nullptr;
 
     // Initialize Game functions
     g_gameScenes[GameScene_Game].renderFunction = renderer_Game;
-    g_gameScenes[GameScene_Game].mouseFunction = mouseMotionFuction_Game;
+    g_gameScenes[GameScene_Game].mouseFunction = mouseMotionFubction_Game;
     g_gameScenes[GameScene_Game].keyboardFunction = nullptr;
+    g_gameScenes[GameScene_Game].mouseClickFunction = nullptr;
 
     // Initialize Highscores functions
     g_gameScenes[GameScene_Highscores].renderFunction = renderer_Highscores;
-    g_gameScenes[GameScene_Highscores].mouseFunction = mouseMotionFuction_Highscores;
+    g_gameScenes[GameScene_Highscores].mouseFunction = mouseMotionFunction_Highscores;
     g_gameScenes[GameScene_Highscores].keyboardFunction = nullptr;
+    g_gameScenes[GameScene_Highscores].mouseClickFunction = nullptr;
 
     // Initialize Victory functions
     g_gameScenes[GameScene_Victory].renderFunction = renderer_Victory;
-    g_gameScenes[GameScene_Victory].mouseFunction = mouseMotionFuction_Victory;
+    g_gameScenes[GameScene_Victory].mouseFunction = mouseMotionFunction_Victory;
     g_gameScenes[GameScene_Victory].keyboardFunction = keyboardFunction_Victory;
-
-    // Initialize Load old game functions
-    g_gameScenes[GameScene_LoadOldGame].renderFunction = renderer_LoadOldGame;
-    g_gameScenes[GameScene_LoadOldGame].mouseFunction = mouseMotionFuction_LoadOldGame;
-    g_gameScenes[GameScene_LoadOldGame].keyboardFunction = nullptr;
+    g_gameScenes[GameScene_Victory].mouseClickFunction = nullptr;
 }
 
 void initializationGlut()
 {
     glutMouseFunc(mainMouseClickFunction);
-    glutPassiveMotionFunc(mainMouseMotionFuction);
+    glutPassiveMotionFunc(mainMouseMotionFunction);
     glutDisplayFunc(mainRendererFunction);
     glutIdleFunc(mainRendererFunction);
     glutReshapeFunc(mainResizeFunction);

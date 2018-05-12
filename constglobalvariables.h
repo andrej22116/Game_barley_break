@@ -13,9 +13,11 @@ const float g_fieldColor[3] = { 0.6f, 0.6f, 0.6f };
 
 const float g_fieldSize = 0.8f;
 
-const float g_infoBarColor[3] = { 0.5f, 0.4f, 0.1f };
-const float g_infoBarColorBottom[3] = { 0.4f, 0.3f, 0.05f };
 const float g_infoTextColor[3] = { 1, 1, 1 };
+
+
+const float g_buttonColor[3] = { 0.3f, 0.5f, 0.5f };
+const float g_buttonColor_hover[3] = { 1.0f, 0.5f, 0.5f };
 
 //-- Decor
 const float g_wintageColor[4] = { 0.937f, 0.855f, 0.651f, 0.3f };
@@ -31,6 +33,23 @@ const float g_cellSize = (g_fieldSize - (g_fieldSize * g_cellsBetweenInterval * 
 const float g_cellArrowColor[3] = { 0.8f, 0.1f, 0.1f };
 const float g_selectCellArrowColor[3] = { 0.8f, 0.1f, 0.5f };
 
+// Buttons
+const float g_mainMenuButtonsWidth = g_fieldSize - g_cellsBetweenInterval;
+const float g_mainMenuButtonsHeight = 0.1f;
+const float g_mainMenuButtonsPosY[] = {
+    g_fieldSize - 0.1f - g_cellsBetweenInterval,
+    g_fieldSize - 0.4f - g_cellsBetweenInterval,
+    g_fieldSize - 0.7f - g_cellsBetweenInterval,
+    -g_fieldSize + 0.1f + g_cellsBetweenInterval
+};
+
+const float g_gameButtonsWidth = 0.35f;
+const float g_gameButtonsHeight = 0.075f;
+const float g_gameButtonsPosY = g_fieldSize + 0.05f + g_cellsBetweenInterval;
+const float g_gameButtonsPosX[] = {
+    -g_fieldSize / 2 - 0.05f,
+    g_fieldSize / 2 + 0.05f
+};
 
 const char g_NumbersStrings[16][3] = {
     "", "1", "2", "3", "4", "5", "6", "7", "8",
