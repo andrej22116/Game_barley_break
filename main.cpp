@@ -39,7 +39,8 @@ enum GameSceneType {
     GameScene_MainMenu = 0,
     GameScene_Game,
     GameScene_Highscores,
-    GameScene_YesNo,
+    GameScene_Victory,
+    GameScene_LoadOldGame,
     GameScene_CountScenes
 };
 
@@ -85,10 +86,9 @@ struct Game {
 //================================GLOBAL VARIABLES================================//
 
 float g_deltaTime = 0;
+GameSceneType g_currentGameScene = GameScene_MainMenu;
 
 //===============================RENDER FUNCTIONS===============================//
-void mainRenderer();
-
 //-- Interface
 void drawBackground();
 void drawBottomPanel();
@@ -112,9 +112,6 @@ void drawWintage();
 
 
 //=============================CALLBACK FUNCTIONS=============================//
-//======----- For all -----======//
-void mouseClickFunction(int button, int state, int x, int y);
-void resizeWindowFunction(int width, int height);
 //-- Timers
 void gameLongTimer(int value);
 void animationTimer(int value);
@@ -131,6 +128,7 @@ void renderer_Game(void);
 //======----- Victory -----======//
 void mouseMotionFuction_Victory(int x, int y);
 void renderer_Victory(void);
+void keyboardFunction_Victory(unsigned char key, int x, int y);
 
 //======----- Highscores -----======//
 void mouseMotionFuction_Highscores(int x, int y);
@@ -142,14 +140,17 @@ void renderer_LoadOldGame(void);
 
 
 
-
-void mouseFuction(int x, int y);
-//void mouseClickFunction(int button, int state, int x, int y);
-void mainResize(int width, int height);
+void mainRendererFunction();
+void mainKeyboardFunction(unsigned char key, int x, int y);
+void mainMouseClickFunction(int button, int state, int x, int y);
+void mainMouseMotionFuction(int x, int y);
+void mainResizeFunction(int width, int height);
 
 
 //=============================LOGICK FUNCTIONS=============================//
-void initialization();
+void initializationGame();
+void initializationGlut();
+void initializationGl();
 
 float getChipPos(int chip_x, int chip_y, float& pos_x, float& pos_y);
 float convertWindowCordsToGlWorldCords(int window_x, int window_y, float& world_x, float& world_y);
@@ -165,7 +166,7 @@ void checkVictory();
 
 
 //==============================REALIZATION==============================//
-
+//======----- Main functions
 
 int main(int argc, char** argv)
 {
@@ -181,27 +182,21 @@ int main(int argc, char** argv)
         return -1;
     }
 
-    glutMouseFunc(mouseClickFunction);
-    glutPassiveMotionFunc(mouseFuction);
-    glutDisplayFunc(mainRenderer);
-    glutIdleFunc(mainRenderer);
-    glutReshapeFunc(mainResize);
+    initializationGl();
+    initializationGlut();
+    initializationGame();
 
     glutTimerFunc(20, gameTimer, 0);
 
+    g_currentGameScene = GameScene_Game;
     makeGame();
-
-    glEnable(GL_MULTISAMPLE);
-    glEnable(GL_BLEND);
-    glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    glClearColor(0.75f, 0.55f, 0.25f, 1.0f);
     glutMainLoop();
 
 
     return 0;
 }
 
-void mainRenderer()
+void mainRendererFunction()
 {
     glClear(GL_COLOR_BUFFER_BIT);
 
@@ -212,19 +207,41 @@ void mainRenderer()
 
     glLoadIdentity();
 
-    drawBottomPanel();
-    drawDrawTimeAndSteps();
-    drawBackground();
-    drawChips();
-    drawWintage();
+    g_gameScenes[g_currentGameScene].renderFunction();
 
     glutSwapBuffers();
 }
 
-void mainResize(int width, int height)
+void mainKeyboardFunction(unsigned char key, int x, int y)
+{
+    g_gameScenes[g_currentGameScene].keyboardFunction(key, x, y);
+}
+
+void mainMouseClickFunction(int button, int state, int x, int y)
+{
+    if (button == GLUT_LEFT_BUTTON && state == GLUT_UP && !g_gameMouse.awaitUpdate)
+    {
+        g_gameMouse.mouseClick = true;
+        g_gameMouse.awaitUpdate = true;
+    }
+    else
+    {
+        g_gameMouse.mouseClick = false;
+    }
+}
+
+void mainMouseMotionFuction(int x, int y)
+{
+    g_gameScenes[g_currentGameScene].mouseFunction(x, y);
+}
+
+void mainResizeFunction(int width, int height)
 {
     glutReshapeWindow(g_width, g_height);
 }
+
+
+//===========
 
 void drawBackground()
 {
@@ -496,60 +513,6 @@ void drawWintage()
 }
 
 
-void mouseFuction(int x, int y)
-{
-    if (g_gameMouse.awaitUpdate)
-    {
-        return;
-    }
-
-    float pos_x = 0;
-    float pos_y = 0;
-    convertWindowCordsToGlWorldCords(x, y, pos_x, pos_y);
-
-    memset(&g_gameMouse, 0, sizeof(g_gameMouse));
-
-    if ( ( pos_x >= -g_fieldSize && pos_x <= g_fieldSize )
-        && ( pos_y >= -g_fieldSize && pos_y <= g_fieldSize ) )
-    {
-        int cell_x = int((pos_x + g_fieldSize) / (g_fieldSize / 2.0f));
-        int cell_y = int((g_fieldSize - pos_y) / (g_fieldSize / 2.0f));
-
-        if (cell_x > 3 || cell_y > 3)
-        {
-            return;
-        }
-
-        float chip_x = 0;
-        float chip_y = 0;
-        getChipPos(cell_x, cell_y, chip_x, chip_y);
-
-        if ( ( pos_x >= chip_x - g_cellSize && pos_x <= chip_x + g_cellSize )
-            && ( pos_y >= chip_y - g_cellSize && pos_y <= chip_y + g_cellSize ) )
-        {
-            g_gameMouse.mouseOnCell = true;
-            g_gameMouse.cell_x = cell_x;
-            g_gameMouse.cell_y = cell_y;
-        }
-
-        return;
-    }
-}
-
-void mouseClickFunction(int button, int state, int x, int y)
-{
-    if (button == GLUT_LEFT_BUTTON && state == GLUT_UP && !g_gameMouse.awaitUpdate)
-    {
-        g_gameMouse.mouseClick = true;
-        g_gameMouse.awaitUpdate = true;
-    }
-    else
-    {
-        g_gameMouse.mouseClick = false;
-    }
-}
-
-
 float convertWindowCordsToGlWorldCords(int window_x, int window_y, float& world_x, float& world_y)
 {
     world_x = (2.0f * window_x - g_width) / g_width;
@@ -587,7 +550,11 @@ void gameLongTimer(int value)
         g_game.time.hours++;
         g_game.time.minutes = 0;
     }
-    glutTimerFunc(1000, gameLongTimer, 0);
+
+    if (g_currentGameScene == GameScene_Game)
+    {
+        glutTimerFunc(1000, gameLongTimer, 0);
+    }
     glutPostRedisplay();
 }
 
@@ -723,4 +690,157 @@ void drawDrawTimeAndSteps()
 
     sprintf(buffer, "Steps: %d", g_game.steps);
     drawText(buffer, 0.6, -0.9, 1);
+}
+
+
+
+
+//======----- Main menu -----======//
+void mouseMotionFuction_MainMenu(int x, int y)
+{
+}
+
+void renderer_MainMenu(void)
+{
+
+}
+
+
+//======----- Game -----======//
+void mouseMotionFuction_Game(int x, int y)
+{
+    if (g_gameMouse.awaitUpdate)
+    {
+        return;
+    }
+
+    float pos_x = 0;
+    float pos_y = 0;
+    convertWindowCordsToGlWorldCords(x, y, pos_x, pos_y);
+
+    memset(&g_gameMouse, 0, sizeof(g_gameMouse));
+
+    if ( ( pos_x >= -g_fieldSize && pos_x <= g_fieldSize )
+        && ( pos_y >= -g_fieldSize && pos_y <= g_fieldSize ) )
+    {
+        int cell_x = int((pos_x + g_fieldSize) / (g_fieldSize / 2.0f));
+        int cell_y = int((g_fieldSize - pos_y) / (g_fieldSize / 2.0f));
+
+        if (cell_x > 3 || cell_y > 3)
+        {
+            return;
+        }
+
+        float chip_x = 0;
+        float chip_y = 0;
+        getChipPos(cell_x, cell_y, chip_x, chip_y);
+
+        if ( ( pos_x >= chip_x - g_cellSize && pos_x <= chip_x + g_cellSize )
+            && ( pos_y >= chip_y - g_cellSize && pos_y <= chip_y + g_cellSize ) )
+        {
+            g_gameMouse.mouseOnCell = true;
+            g_gameMouse.cell_x = cell_x;
+            g_gameMouse.cell_y = cell_y;
+        }
+
+        return;
+    }
+}
+
+void renderer_Game(void)
+{
+    drawBottomPanel();
+    drawDrawTimeAndSteps();
+    drawBackground();
+    drawChips();
+    drawWintage();
+}
+
+
+//======----- Victory -----======//
+void mouseMotionFuction_Victory(int x, int y)
+{
+
+}
+
+void renderer_Victory(void)
+{
+
+}
+
+void keyboardFunction_Victory(unsigned char key, int x, int y)
+{
+
+}
+
+
+//======----- Highscores -----======//
+void mouseMotionFuction_Highscores(int x, int y)
+{
+
+}
+
+void renderer_Highscores(void)
+{
+
+}
+
+
+//======----- Load old game -----======//
+void mouseMotionFuction_LoadOldGame(int x, int y)
+{
+
+}
+
+void renderer_LoadOldGame(void)
+{
+
+}
+
+
+
+//=============================LOGICK FUNCTIONS=============================//
+void initializationGame()
+{
+    // Initialize Main menu functions
+    g_gameScenes[GameScene_MainMenu].renderFunction = renderer_MainMenu;
+    g_gameScenes[GameScene_MainMenu].mouseFunction = mouseMotionFuction_MainMenu;
+    g_gameScenes[GameScene_MainMenu].keyboardFunction = nullptr;
+
+    // Initialize Game functions
+    g_gameScenes[GameScene_Game].renderFunction = renderer_Game;
+    g_gameScenes[GameScene_Game].mouseFunction = mouseMotionFuction_Game;
+    g_gameScenes[GameScene_Game].keyboardFunction = nullptr;
+
+    // Initialize Highscores functions
+    g_gameScenes[GameScene_Highscores].renderFunction = renderer_Highscores;
+    g_gameScenes[GameScene_Highscores].mouseFunction = mouseMotionFuction_Highscores;
+    g_gameScenes[GameScene_Highscores].keyboardFunction = nullptr;
+
+    // Initialize Victory functions
+    g_gameScenes[GameScene_Victory].renderFunction = renderer_Victory;
+    g_gameScenes[GameScene_Victory].mouseFunction = mouseMotionFuction_Victory;
+    g_gameScenes[GameScene_Victory].keyboardFunction = keyboardFunction_Victory;
+
+    // Initialize Load old game functions
+    g_gameScenes[GameScene_LoadOldGame].renderFunction = renderer_LoadOldGame;
+    g_gameScenes[GameScene_LoadOldGame].mouseFunction = mouseMotionFuction_LoadOldGame;
+    g_gameScenes[GameScene_LoadOldGame].keyboardFunction = nullptr;
+}
+
+void initializationGlut()
+{
+    glutMouseFunc(mainMouseClickFunction);
+    glutPassiveMotionFunc(mainMouseMotionFuction);
+    glutDisplayFunc(mainRendererFunction);
+    glutIdleFunc(mainRendererFunction);
+    glutReshapeFunc(mainResizeFunction);
+}
+
+void initializationGl()
+{
+    glEnable(GL_MULTISAMPLE);
+    glEnable(GL_BLEND);
+    glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glClearColor(0.75f, 0.55f, 0.25f, 1.0f);
 }
