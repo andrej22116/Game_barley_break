@@ -112,14 +112,40 @@ void drawWintage();
 
 
 //=============================CALLBACK FUNCTIONS=============================//
-void mouseFuction(int x, int y);
+//======----- For all -----======//
 void mouseClickFunction(int button, int state, int x, int y);
-void mainResize(int width, int height);
-
+void resizeWindowFunction(int width, int height);
 //-- Timers
 void gameLongTimer(int value);
 void animationTimer(int value);
 void gameTimer(int value);
+
+//======----- Main menu -----======//
+void mouseMotionFuction_MainMenu(int x, int y);
+void renderer_MainMenu(void);
+
+//======----- Game -----======//
+void mouseMotionFuction_Game(int x, int y);
+void renderer_Game(void);
+
+//======----- Victory -----======//
+void mouseMotionFuction_Victory(int x, int y);
+void renderer_Victory(void);
+
+//======----- Highscores -----======//
+void mouseMotionFuction_Highscores(int x, int y);
+void renderer_Highscores(void);
+
+//======----- Load old game -----======//
+void mouseMotionFuction_LoadOldGame(int x, int y);
+void renderer_LoadOldGame(void);
+
+
+
+
+void mouseFuction(int x, int y);
+//void mouseClickFunction(int button, int state, int x, int y);
+void mainResize(int width, int height);
 
 
 //=============================LOGICK FUNCTIONS=============================//
