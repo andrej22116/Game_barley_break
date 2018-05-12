@@ -1,4 +1,5 @@
 #include <iostream>
+#include <fstream>
 #include <array>
 #include <algorithm>
 
@@ -83,6 +84,13 @@ struct Game {
     int gameId;
 } g_game;
 
+struct Highscore {
+    char playerName[16];
+    Time time;
+    int steps;
+};
+array<Highscore, 11> g_highscoresTable;
+
 //================================GLOBAL VARIABLES================================//
 
 float g_deltaTime = 0;
@@ -90,13 +98,14 @@ GameSceneType g_currentGameScene = GameScene_MainMenu;
 
 //===============================RENDER FUNCTIONS===============================//
 //-- Interface
+void drawBackgroundSquareWithRounding(float x, float y, float width, float height);
 void drawBackground();
 void drawButton(const char* text, float x, float y, float width, float height, Buttons button_id);
 void drawDrawTimeAndSteps();
 
+void drawHighscoresTable(float x, float y);
+
 //-- Other
-// Рисует клетку
-void drawCell(float x, float y, float size);
 // Рисует все фишки
 void drawChips();
 // Рисует фишку
@@ -156,9 +165,13 @@ float convertWindowCordsToGlWorldCords(int window_x, int window_y, float& world_
 ArrowDirection getChipMoveDirection(int chip_x, int chip_y);
 
 void makeGame();
-
 void makeMove();
 void checkVictory();
+
+void saveGame();
+void loadGame();
+void saveHighscoresTable();
+void loadHighscoresTable();
 
 
 
@@ -184,9 +197,7 @@ int main(int argc, char** argv)
     initializationGlut();
     initializationGame();
 
-    //g_currentGameScene = GameScene_MainMenu;
-    g_currentGameScene = GameScene_Game;
-    makeGame();
+    g_currentGameScene = GameScene_Victory;
     glutMainLoop();
 
 
@@ -269,6 +280,7 @@ void mouseClickFunction_MainMenu(int button, int state, int x, int y)
             g_currentGameScene = GameScene_Game;
         } break;
         case Button_LoadGame: {
+            loadGame();
             glutTimerFunc(1000, gameTimer, 0);
             g_currentGameScene = GameScene_Game;
         } break;
@@ -280,7 +292,6 @@ void mouseClickFunction_MainMenu(int button, int state, int x, int y)
         if (g_gameMouse.buttonId == Button_NewGame)
         {
             makeGame();
-
         }
         else if (g_gameMouse.buttonId == Button_Back)
         {
@@ -364,6 +375,7 @@ void mouseClickFunction_Game(int button, int state, int x, int y)
         }
         else if (g_gameMouse.buttonId == Button_Back)
         {
+            saveGame();
             g_currentGameScene = GameScene_MainMenu;
         }
     }
@@ -450,7 +462,15 @@ void mouseMotionFunction_Victory(int x, int y)
 
 void renderer_Victory(void)
 {
+    drawBackground();
 
+    drawHighscoresTable(0, 0.0f);
+    drawDrawTimeAndSteps();
+
+    drawButton("Yahooooo!", 0, g_victoryButtonsPosY,
+               g_victoryButtonsWidth, g_victoryButtonsHeight, Button_Ok);
+
+    drawWintage();
 }
 
 void keyboardFunction_Victory(unsigned char key, int x, int y)
@@ -477,89 +497,6 @@ void renderer_Highscores(void)
 
 
 //===========
-void drawCell(float x, float y, float size)
-{
-    // Center
-    glBegin(GL_QUADS);
-    {
-        glVertex2f(x - size + g_cellRoundingSize, y + size);
-        glVertex2f(x - size + g_cellRoundingSize, y - size);
-        glVertex2f(x + size - g_cellRoundingSize, y - size);
-        glVertex2f(x + size - g_cellRoundingSize, y + size);
-
-        glVertex2f(x - size, y + size - g_cellRoundingSize);
-        glVertex2f(x - size, y - size + g_cellRoundingSize);
-        glVertex2f(x + size, y - size + g_cellRoundingSize);
-        glVertex2f(x + size, y + size - g_cellRoundingSize);
-    }
-    glEnd();
-
-    // Top left
-    glBegin(GL_TRIANGLE_STRIP);
-    {
-        float center_x = x - size + g_cellRoundingSize;
-        float center_y = y + size - g_cellRoundingSize;
-
-        for (int i = 80; i <= 190; i += g_cellRoundingInterval)
-        {
-            float angle = float(i) * float(M_PI) / 180.0f;
-            glVertex2f(center_x, center_y);
-            glVertex2f(center_x + cos(angle) * g_cellRoundingSize,
-                       center_y + sin(angle) * g_cellRoundingSize);
-        }
-    }
-    glEnd();
-
-    // Bottom left
-    glBegin(GL_TRIANGLE_STRIP);
-    {
-        float center_x = x - size + g_cellRoundingSize;
-        float center_y = y - size + g_cellRoundingSize;
-
-        for (int i = 170; i <= 280; i += g_cellRoundingInterval)
-        {
-            float angle = float(i) * float(M_PI) / 180.0f;
-            glVertex2f(center_x, center_y);
-            glVertex2f(center_x + cos(angle) * g_cellRoundingSize,
-                       center_y + sin(angle) * g_cellRoundingSize);
-        }
-    }
-    glEnd();
-
-    // Bottom right
-    glBegin(GL_TRIANGLE_STRIP);
-    {
-        float center_x = x + size - g_cellRoundingSize;
-        float center_y = y - size + g_cellRoundingSize;
-
-        for (int i = 260; i <= 370; i += g_cellRoundingInterval)
-        {
-            float angle = float(i) * float(M_PI) / 180.0f;
-            glVertex2f(center_x, center_y);
-            glVertex2f(center_x + cos(angle) * g_cellRoundingSize,
-                       center_y + sin(angle) * g_cellRoundingSize);
-        }
-    }
-    glEnd();
-
-    // Top right
-    glBegin(GL_TRIANGLE_STRIP);
-    {
-        float center_x = x + size - g_cellRoundingSize;
-        float center_y = y + size - g_cellRoundingSize;
-
-        for (int i = -10; i <= 100; i += g_cellRoundingInterval)
-        {
-            float angle = float(i) * float(M_PI) / 180.0f;
-            glVertex2f(center_x, center_y);
-            glVertex2f(center_x + cos(angle) * g_cellRoundingSize,
-                       center_y + sin(angle) * g_cellRoundingSize);
-        }
-    }
-    glEnd();
-}
-
-
 void drawChips()
 {
     for (int y = 0; y < 4; y++)
@@ -594,7 +531,7 @@ void drawChip(int x, int y)
         textPos_y += move_y;
     }
 
-    drawCell(pos_x, pos_y, g_cellSize);
+    drawBackgroundSquareWithRounding(pos_x, pos_y, g_cellSize, g_cellSize);
     glColor3fv(g_cellTextColor);
     drawText(g_NumbersStrings[chipNumber], textPos_x, textPos_y, 2);
 
@@ -770,6 +707,11 @@ void gameTimer(int value)
         g_game.time.minutes = 0;
     }
 
+    if (g_game.time.seconds % 10 == 0)
+    {
+        saveGame();
+    }
+
     glutTimerFunc(1000, gameTimer, value);
     glutPostRedisplay();
 }
@@ -876,6 +818,8 @@ void makeGame()
 
     g_game.gameId++;
     glutTimerFunc(1000, gameTimer, g_game.gameId);
+
+    saveGame();
 }
 
 
@@ -895,7 +839,7 @@ void drawDrawTimeAndSteps()
 void drawBackground()
 {
     glColor3fv(g_fieldBackgroundColor);
-    drawCell(0, 0, 0.8);
+    drawBackgroundSquareWithRounding(0, 0, g_fieldSize, g_fieldSize);
 }
 
 void drawButton(const char* text, float x, float y, float width, float height, Buttons button_id)
@@ -908,7 +852,83 @@ void drawButton(const char* text, float x, float y, float width, float height, B
     {
         glColor3fv(g_buttonColor);
     }
+    drawBackgroundSquareWithRounding(x, y, width, height);
 
+    glColor3fv(g_infoTextColor);
+    int textLen = strlen(text);
+    float textPos_x = x - (1.0f - (1.0f / textLen)) + 0.75f;
+    float textPos_y = y - 0.02;
+
+    drawText(text, textPos_x, textPos_y, 1);
+}
+
+void drawHighscoresTable(float x, float y)
+{
+    glColor3fv(g_highscoresTableBackgroundColor);
+    drawBackgroundSquareWithRounding(x, y, g_highscoresTableWidth, g_highscoresTableHeight);
+
+    glColor3f(0.2f, 0.1f, 0.4f);
+    char buffer[200];
+    sprintf(buffer, "%3s%7s%16s%9s%12s%11s%s", "num", "", "player name","", "time", "", "steps");
+    float start_x = x - g_highscoresTableWidth + g_cellsBetweenInterval;
+    float start_y = y + g_highscoresTableHeight - 0.1;
+    drawText(buffer, start_x, start_y, 1);
+
+    start_y -= 0.1;
+    for (int i = 0; i < 10; i++)
+    {
+        sprintf(buffer, "%3d", i + 1);
+        drawText(buffer, start_x, start_y, 1);
+
+        sprintf(buffer, "%-20s", g_highscoresTable[i].playerName);
+        drawText(buffer, start_x + 0.2, start_y, 1);
+
+        sprintf(buffer, "%2.2d:%2.2d:%2.2d",
+                g_highscoresTable[i].time.hours,
+                g_highscoresTable[i].time.minutes,
+                g_highscoresTable[i].time.seconds);
+        drawText(buffer, start_x + 0.865, start_y, 1);
+
+        sprintf(buffer, "%d", g_highscoresTable[i].steps);
+        drawText(buffer, start_x + 1.2, start_y, 1);
+
+        start_y -= 0.08;
+    }
+
+    glBegin(GL_LINES);
+    {
+        float line_x_start = x - g_highscoresTableWidth + g_cellsBetweenInterval + 0.15;
+        float line_x_end = line_x_start;
+        float line_y_start = y + g_highscoresTableHeight;
+        float line_y_end = y - g_highscoresTableHeight;
+        glVertex2f(line_x_start, line_y_start);
+        glVertex2f(line_x_end, line_y_end);
+
+        line_x_start = line_x_end = line_x_end += 0.65;
+        glVertex2f(line_x_start, line_y_start);
+        glVertex2f(line_x_end, line_y_end);
+
+        line_x_start = line_x_end = line_x_end += 0.37;
+        glVertex2f(line_x_start, line_y_start);
+        glVertex2f(line_x_end, line_y_end);
+
+        line_x_start = x - g_highscoresTableWidth;
+        line_x_end = x + g_highscoresTableWidth;
+
+        line_y_start = line_y_end = y + g_highscoresTableHeight - 0.1275;
+
+        for (int i = 0; i < 11; i++)
+        {
+            glVertex2f(line_x_start, line_y_start);
+            glVertex2f(line_x_end, line_y_end);
+            line_y_start = line_y_end = line_y_end - 0.08;
+        }
+    }
+    glEnd();
+}
+
+void drawBackgroundSquareWithRounding(float x, float y, float width, float height)
+{
     glBegin(GL_QUADS);
     {
         glVertex2f(x - width + g_cellRoundingSize, y + height);
@@ -986,20 +1006,14 @@ void drawButton(const char* text, float x, float y, float width, float height, B
         }
     }
     glEnd();
-
-
-    glColor3fv(g_infoTextColor);
-    int textLen = strlen(text);
-    float textPos_x = x - (1.0f - (1.0f / textLen)) + 0.75f;
-    float textPos_y = y - 0.02;
-
-    drawText(text, textPos_x, textPos_y, 1);
 }
 
 
 //=============================LOGICK FUNCTIONS=============================//
 void initializationGame()
 {
+    loadHighscoresTable();
+    g_currentGameScene = GameScene_MainMenu;
     memset(&g_game, 0, sizeof(g_game));
 
     // Initialize Main menu functions
@@ -1042,4 +1056,53 @@ void initializationGl()
     glEnable(GL_BLEND);
     glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glClearColor(0.75f, 0.55f, 0.25f, 1.0f);
+}
+
+
+void saveGame()
+{
+    ofstream fout("save.bin", ios::binary);
+    if (!fout)
+    {
+        return;
+    }
+    fout.write((char*)&g_game, sizeof(g_game));
+    fout.close();
+}
+
+void loadGame()
+{
+    ifstream fin("save.bin", ios::binary);
+    if (!fin)
+    {
+        makeGame();
+        return;
+    }
+    fin.read((char*)&g_game, sizeof(g_game));
+    fin.close();
+
+    glutTimerFunc(1000, gameTimer, g_game.gameId);
+}
+
+void saveHighscoresTable()
+{
+    ofstream fout("highscores.bin", ios::binary);
+    if (!fout)
+    {
+        return;
+    }
+    fout.write((char*)g_highscoresTable.data(), sizeof(Highscore) * 10);
+    fout.close();
+}
+
+void loadHighscoresTable()
+{
+    ifstream fin("highscores.bin", ios::binary);
+    if (!fin)
+    {
+        memset(g_highscoresTable.data(), 0, sizeof(Highscore) * 10);
+        return;
+    }
+    fin.read((char*)g_highscoresTable.data(), sizeof(Highscore) * 10);
+    fin.close();
 }

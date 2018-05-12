@@ -11,6 +11,10 @@ const int g_height = 600;
 const float g_fieldBackgroundColor[3] = { 0.8f, 0.8f, 0.8f };
 const float g_fieldColor[3] = { 0.6f, 0.6f, 0.6f };
 
+const float g_highscoresTableBackgroundColor[3] = { 0.8f, 0.7f, 0.6f };
+const float g_highscoresTableWidth = 0.75f;
+const float g_highscoresTableHeight = 0.5f;
+
 const float g_fieldSize = 0.8f;
 
 const float g_infoTextColor[3] = { 1, 1, 1 };
@@ -50,6 +54,10 @@ const float g_gameButtonsPosX[] = {
     -g_fieldSize / 2 - 0.05f,
     g_fieldSize / 2 + 0.05f
 };
+
+const float g_victoryButtonsWidth = g_fieldSize - g_cellsBetweenInterval;
+const float g_victoryButtonsHeight = 0.1f;
+const float g_victoryButtonsPosY = -g_fieldSize + 0.1f + g_cellsBetweenInterval;
 
 const char g_NumbersStrings[16][3] = {
     "", "1", "2", "3", "4", "5", "6", "7", "8",
